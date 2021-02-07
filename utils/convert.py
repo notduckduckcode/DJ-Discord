@@ -10,7 +10,6 @@ import discord
 import discord.ext.commands
 import discord.ext.menus
 import discord_argparse
-import rethinkdb
 import youtube_dl
 
 from utils.objects import Playlist
@@ -50,7 +49,9 @@ class VolumeConverter(discord.ext.commands.Converter):
             raise VolumeTypeError(int, type(argument))
 
         if int(argument) < 0 or int(argument) > 200:
-            raise OutOfBoundVolumeError("The given volume exceeds the boundary of Lavalink and Discord.py")
+            raise OutOfBoundVolumeError(
+                "The given volume exceeds the boundary of Lavalink and Discord.py"
+            )
 
         return int(argument)
 
@@ -60,12 +61,14 @@ class StationConverter(discord.ext.commands.Converter):
                       argument: str) -> typing.Optional[Station]:
         if len(argument) == 4 and re.compile(
                 r"[AKNWaknw][a-zA-Z]{0,2}[0123456789][a-zA-Z]{1,3}").match(
-            argument):
+                    argument):
             raw = await ctx.database.get(call_sign=argument, table="stations")
             return Station.from_json(raw)
 
-        if re.compile(r'^-?\d+(?:\.\d+)$').match(argument) and 87.5 <= float(argument) <= 108:
-            if raw := await ctx.database.get(frequency=float(argument), table="stations"):
+        if re.compile(r'^-?\d+(?:\.\d+)$').match(
+                argument) and 87.5 <= float(argument) <= 108:
+            if raw := await ctx.database.get(frequency=float(argument),
+                                             table="stations"):
                 return Station.from_json(raw[0])
 
 
@@ -74,30 +77,23 @@ class PlaylistConverter(discord.ext.commands.Converter):
         try:
             author = await discord.ext.commands.MemberConverter().convert(
                 ctx, argument)
-            playlist = (await ctx.database.get(author=author.id))[0]
+            playlist = await ctx.database.get(author=author.id)
             return Playlist.from_json(playlist)
         except Exception as exc:
-            if isinstance(exc,
-                          discord.ext.commands.MemberNotFound) or isinstance(
-                              exc, IndexError):
+            if isinstance(exc, discord.ext.commands.MemberNotFound):
                 return
 
         if (re.compile(
                 "^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$"
         ).match(argument) is not None):
-            playlist = (await ctx.database.run(
-                rethinkdb.r.table("playlists").get(argument)))
+            playlist = await ctx.mongodb.djdiscord.playlists.find_one(
+                {"id": argument})
             return Playlist(playlist["id"], playlist["songs"],
                             playlist["author"], playlist["cover"])
 
-        slot = (await ctx.database.get(name=argument))[0]
-        return Playlist(slot["id"], slot["songs"], playlist["author"],
-                        playlist["cover"])
-
-    async def default(self, ctx: DJDiscordContext) -> Playlist:
-        playlist = await ctx.database.get(id=ctx.author.id)
-        return Playlist(playlist["id"], playlist["songs"],
-                        playlist["author"], playlist["cover"])
+        slot = await ctx.database.get(author=ctx.author.id)
+        return Playlist(slot["id"], slot["songs"], slot["author"],
+                        slot["cover"])
 
 class SongConverter(discord.ext.commands.Converter):
     async def convert(self, ctx: DJDiscordContext, argument: str) -> Song:
@@ -122,19 +118,15 @@ class SongConverter(discord.ext.commands.Converter):
                         datetime.datetime.strptime(
                             data["entries"][0]["upload_date"],
                             "%Y%m%d").astimezone().strftime("%Y-%m-%d"),
-                        data["entries"][0]["duration"])
+                        data["entries"][0]["duration"], False)
 
                 return Song(
-                    data["formats"][0]["url"],
-                    data["webpage_url"],
-                    data["uploader"],
-                    data["title"],
-                    data["thumbnails"],
+                    data["formats"][0]["url"], data["webpage_url"],
+                    data["uploader"], data["title"], data["thumbnails"],
                     datetime.datetime.strptime(
                         data["upload_date"],
                         "%Y%m%d").astimezone().strftime("%Y-%m-%d"),
-                    data["duration"],
-                )
+                    data["duration"], False)
 
             return None
 
@@ -167,13 +159,14 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
                 value="You have no songs in your playlist, go add some!")
 
         for index, song in enumerate(page, start=offset):
-            template.add_field(
-                name="%s `{}.` {}".format(index + 1, song["title"]) %
-                song_emoji_conversion[urlparse(song["url"]).netloc],
-                value=
-                "Created: `{0[created]}`\nDuration: `{0[length]}` seconds, Author: `{0[uploader]}`"
-                .format(song),
-                inline=False)
+            if not song["void"]:
+                template.add_field(
+                    name="%s `{}.` {}".format(index + 1, song["title"]) %
+                    song_emoji_conversion[urlparse(song["url"]).netloc],
+                    value=
+                    "Created: `{0[created]}`\nDuration: `{0[length]}` seconds, Author: `{0[uploader]}`"
+                    .format(song),
+                    inline=False)
 
         return template
 
@@ -184,32 +177,9 @@ class NameValidator(discord.ext.commands.Converter):
         _: DJDiscordContext,
         argument: str,
     ):
-        # if ctx.author.premium:
+        # if ctx.author.premium: no premium yet :p
         # return textwrap.shorten(argument, 40)
         return textwrap.shorten(argument, 20)
-
-
-class VoicePrompt(discord.ext.menus.Menu):
-    def __init__(self, message: str) -> None:
-        super().__init__(timeout=5.0, delete_message_after=True)
-        self.msg = message
-        self.voted = 0
-
-    async def send_initial_message(self, ctx, channel):
-        return await channel.send(self.msg)
-
-    @discord.ext.menus.button("👍")
-    async def vote_inc(self, payload) -> None:
-        self.voted += 1
-
-    @discord.ext.menus.button("👎")
-    async def vote_dec(self, payload) -> None:
-        self.voted -= 1
-
-    async def prompt(self, ctx: DJDiscordContext) -> None:
-        await self.start(ctx, wait=True)
-        return self.voted
-
 
 class PlaylistsPaginator(discord.ext.menus.ListPageSource):
     def __init__(self, *, ctx: DJDiscordContext, playlists: typing.List[dict]):

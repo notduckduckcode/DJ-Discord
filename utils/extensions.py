@@ -3,11 +3,10 @@ import asyncio
 
 import os
 
-import asyncpg
 import lavalink
 import discord
+import motor.motor_asyncio
 import discord.ext.commands
-import rethinkdb
 
 from pretty_help import PrettyHelp, navigation
 from utils.objects import Templates
@@ -17,6 +16,10 @@ from utils.database import DJDiscordDatabaseManager
 class DJDiscordContext(discord.ext.commands.Context):
     def __init__(self: DJDiscordContext, **kwargs: dict) -> None:
         super().__init__(**kwargs)
+
+    @property
+    def mongodb(self: DJDiscordContext) -> motor.motor_asyncio.AsyncIOMotorClient:
+        return self.bot.mongo_conn
 
     @property
     def player(self: DJDiscordContext) -> None:
@@ -32,42 +35,22 @@ class DJDiscordContext(discord.ext.commands.Context):
         return self.bot.voice_queue
 
     @property
-    async def dj(self: DJDiscordContext):
-        role_id = await self.database.psqlconn.fetch(
-            """SELECT (dj_role) FROM configuration WHERE id=$1""", self.guild.id
-        )
-
-        role = discord.utils.get(self.guild.roles, id=role_id)
-
-        return role in self.author.roles
-
-    async def wait_for(self: DJDiscordContext, event: str, check, timeout=10):
-        try:
-            return await self.bot.wait_for(event, check=check, timeout=timeout)
-        except Exception:
-            pass
-
-    @property
     def database(self: DJDiscordContext) -> DJDiscordDatabaseManager:
-        return DJDiscordDatabaseManager(self.bot.rdbconn, self.bot.psqlconn)
+        return DJDiscordDatabaseManager(self.bot.mongo_conn)
 
 
 class DJDiscord(discord.ext.commands.Bot):
     """DJDiscord [discord.ext.commands.Bot] -> Base class for DJ Discord"""
 
+    __version__ = "1.0.0"
+
     def __init__(self, *args, **kwargs):
         super().__init__(
             *args,
-            **kwargs,
-            help_command=PrettyHelp(
-                dm_help=False,
-                color=0xDC333C,
-                no_category="General Commands",
-                index_title="DJDiscord Commands",
-                show_index=False,
-            )
+            **kwargs
         )
         self.voice_queue = {}
+        self.remove_command("help")
         for object in os.listdir("./commands"):
             if (
                 os.path.isfile("./commands/%s" % object)
@@ -99,21 +82,7 @@ class DJDiscord(discord.ext.commands.Bot):
             os.environ["LAVALINK_NODE_NAME"],
         )
         self.add_listener(self.lavalink.voice_update_handler, "on_socket_response")
-        rethinkdb.r.set_loop_type("asyncio")
-        self.rdbconn = await rethinkdb.r.connect(
-            db="djdiscord",
-            host=os.environ["RETHINKDB_HOST"],
-            port=os.environ["RETHINKDB_PORT"],
-            user=os.environ["RETHINKDB_USERNAME"],
-            password=os.environ["RETHINKDB_PASSWORD"],
-        )
-        self.psqlconn = await asyncpg.connect(
-            user=os.environ["POSTGRESQL_USERNAME"],
-            password=os.environ["POSTGRESQL_PASSWORD"],
-            database="djdiscord_config",
-            host=os.environ["POSTGRESQL_HOST"],
-            port=os.environ["POSTGRESQL_PORT"],
-        )
+        self.mongo_conn = motor.motor_asyncio.AsyncIOMotorClient(os.environ["MONGODB_URL"])
 
     async def on_ready(self):
         print("Ready!")

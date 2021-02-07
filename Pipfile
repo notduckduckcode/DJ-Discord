@@ -5,7 +5,6 @@ name = "pypi"
 
 [packages]
 "discord.py" = {extras = ["voice"], version = "*"}
-rethinkdb = "*"
 youtube-dl = "*"
 urllib3 = "*"
 "discord.ext.menus" = {git = "https://github.com/Rapptz/discord-ext-menus"}
@@ -22,6 +21,8 @@ cchardet = "*"
 jishaku = "*"
 discord-pretty-help = "*"
 pillow = "*"
+motor = "*"
+dnspython = "*"
 
 [dev-packages]
 flake8 = "*"

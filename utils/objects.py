@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import discord.ext.commands
-import rethinkdb
 
 song_emoji_conversion = {
     "open.spotify.com": "<:spotify:790187623569424424>",
@@ -58,8 +57,7 @@ class Song:
     thumbnails: typing.Union[list, str]
     created: typing.Union[datetime.datetime, str]
     length: typing.Union[str, int, datetime.datetime]
-
-    # lyrics: typing.Union[str, SongLyrics]
+    void: bool
 
     def __getitem__(self, item):
         if isinstance(item, str):
@@ -79,6 +77,7 @@ class Song:
             "created": self.created,
             "length": self.length,
             "url": self.url,
+            "void": self.void
         }
 
 
@@ -388,14 +387,15 @@ class Playlist:
         return Playlist(id, songs, author, cover)
 
     async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
-        await rethinkdb.r.table("playlists").get(self.id).update({
-            "songs":
-            rethinkdb.r.row["songs"].delete_at(index - 1)
-        }).run(ctx.database.rdbconn)
+        await ctx.mongodb.djdiscord.playlists.update_one(
+            {"id": self.id},
+            {"$set": {
+                "songs.{}.void".format(index - 1): True
+            }})
 
     async def add_song(self, ctx: discord.ext.commands.Context,
                        song: Song) -> None:
-        await rethinkdb.r.table("playlists").get(self.id).update({
-            "songs":
-            rethinkdb.r.row["songs"].append(song.json)
-        }).run(ctx.database.rdbconn)
+        await ctx.mongodb.djdiscord.playlists.update_one(
+            {"id": self.id}, {"$push": {
+                "songs": song.json
+            }})

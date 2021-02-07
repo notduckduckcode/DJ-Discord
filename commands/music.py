@@ -10,7 +10,6 @@ import discord.ext.commands
 import discord.ext.commands
 import discord.ext.menus
 import lavalink
-import rethinkdb
 
 from utils.exceptions import OutOfBoundVolumeError, VolumeTypeError
 from utils.convert import IndexConverter
@@ -57,6 +56,9 @@ class Music(discord.ext.commands.Cog):
                                 event=lavalink.QueueEndEvent)
 
     async def on_track_start(self, event: lavalink.TrackStartEvent):
+        if event.track.extra["void"]:
+            return await event.player.skip()
+
         embed = discord.Embed(title="Now playing",
                               color=0xDC333C,
                               timestamp=datetime.datetime.now())
@@ -95,15 +97,17 @@ class Music(discord.ext.commands.Cog):
         await ws.voice_state(str(event.player.guild_id), None)
 
     async def cog_before_invoke(self, ctx: DJDiscordContext) -> None:
+        await ctx.trigger_typing()
+
         if ctx.guild is None:
             return
 
-        await self.ensure_voice(ctx)
+        if ctx.author.voice is not None:
+            await self.ensure_voice(ctx)
 
         await ctx.database.log(
             BeforeCogInvokeOp(ctx.author, self, ctx.command, ctx.guild,
                               ctx.channel), )
-        await ctx.trigger_typing()
 
     async def cog_after_invoke(self, ctx: DJDiscordContext) -> None:
         await ctx.database.log(
@@ -150,7 +154,7 @@ class Music(discord.ext.commands.Cog):
             )
 
         if playlist is None:
-            playlist = (await ctx.database.get(author=ctx.author.id))[0]
+            playlist = await ctx.database.get(author=ctx.author.id)
             if playlist is None:
                 return await ctx.send(
                     "You do not own a playlist nor have specified a playlist to start playing"
@@ -167,6 +171,7 @@ class Music(discord.ext.commands.Cog):
             track = lavalink.AudioTrack(results["tracks"][0],
                                         requester=ctx.author.id,
                                         context=ctx,
+                                        void=song["void"],
                                         raw_info=song)
 
             ctx.player.add(requester=ctx.author.id, track=track)
@@ -408,10 +413,9 @@ class Music(discord.ext.commands.Cog):
                    ) -> typing.Optional[discord.Message]:
         """Returns a list of songs the user has in his/her playlist"""
         if playlist is None:
-            slot = await ctx.database.get(author=ctx.author.id)
-            if not slot:
+            query = await ctx.database.get(author=ctx.author.id)
+            if not query:
                 return await ctx.send("You haven't created a playlist yet!")
-            query = slot[0]
             playlist = Playlist(query["id"], query["songs"], query["author"],
                                 query["cover"])
         paginator = discord.ext.menus.MenuPages(
@@ -440,13 +444,12 @@ class Music(discord.ext.commands.Cog):
             return await ctx.send("You already have a playlist")
 
         playlist_id = str(uuid.uuid4())
-        await ctx.database.run(
-            rethinkdb.r.table("playlists").insert({
-                "id": playlist_id,
-                "author": ctx.author.id,
-                "songs": [],
-                "cover": None,
-            }))
+        await ctx.mongodb.djdiscord.playlists.insert_one({
+            "id": playlist_id,
+            "author": ctx.author.id,
+            "songs": [],
+            "cover": None,
+        })
 
         msg = await ctx.send(embed=discord.Embed(
             title="Almost there!", color=0xDC333C
@@ -471,12 +474,11 @@ class Music(discord.ext.commands.Cog):
             return await ctx.send(
                 "You didn't send an attachment to set as your cover art, so we stopped listening"
             )
-
-        await ctx.database.run(
-            rethinkdb.r.table("playlists").filter({
-                "id": playlist_id,
-                "author": ctx.author.id
-            }).update({"cover": response.attachments[0].url}))
+        await ctx.mongodb.djdiscord.playlists.update_one(
+            {"id": playlist_id},
+            {"$set": {
+                "cover": response.attachments[0].url
+            }})
 
         return await msg.edit(
             embed=discord.Embed(
