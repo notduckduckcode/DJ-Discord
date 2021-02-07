@@ -1,4 +1,4 @@
-import asyncio 
+import asyncio
 import time
 import unittest
 
@@ -41,13 +41,13 @@ class AsyncTests(unittest.TestCase):
         self.loop.run_until_complete(_test_task())
 
     def test_run(self):
-        async def _sub_task() -> None:
+        async def _sub_task() -> str:
             return "I am an asyncio sub task!"
 
         assert asyncio.run(_sub_task()) == "I am an asyncio sub task!"
 
     def test_shield(self):
-        async def _shielded_coro() -> None:
+        async def _shielded_coro() -> str:
             return "Captain America's shield got nothing on this"
 
         async def _test_shield() -> None:
@@ -62,7 +62,7 @@ class AsyncTests(unittest.TestCase):
         self.loop.run_until_complete(_test_shield())
 
     def test_wait(self):
-        async def _sub_task() -> None:
+        async def _sub_task() -> str:
             await asyncio.sleep(2)
             return "Thanks for waiting"
 
@@ -76,13 +76,13 @@ class AsyncTests(unittest.TestCase):
         self.loop.run_until_complete(_test_wait())
 
     def test_threads(self) -> None:
-        def _blocking_sub_task() -> None:
+        def _blocking_sub_task() -> str:
             print("I like to block asynchronous tasks")
             time.sleep(5)
-            print("And I just finished execution!")
+            return "And I just finished execution!"
 
-        async def _test_threads() -> None:
-            await asyncio.gather(asyncio.to_thread(_blocking_sub_task),
-                                 asyncio.sleep(5))
+        async def _test_threads() -> str:
+            return await asyncio.gather(asyncio.to_thread(_blocking_sub_task),
+                                        asyncio.sleep(5))
 
-        self.loop.run_until_complete(_test_threads())
+        assert self.loop.run_until_complete(_test_threads())

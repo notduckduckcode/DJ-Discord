@@ -163,8 +163,8 @@ class PlaylistPaginator(discord.ext.menus.ListPageSource):
                 template.add_field(
                     name="%s `{}.` {}".format(index + 1, song["title"]) %
                     song_emoji_conversion[urlparse(song["url"]).netloc],
-                    value=
-                    "Created: `{0[created]}`\nDuration: `{0[length]}` seconds, Author: `{0[uploader]}`"
+                    value="Created: `{0[created]}`\n"
+                          "Duration: `{0[length]}` seconds, Author: `{0[uploader]}`"
                     .format(song),
                     inline=False)
 
@@ -189,10 +189,10 @@ class PlaylistsPaginator(discord.ext.menus.ListPageSource):
         self.playlists = playlists
 
     async def format_page(self, menu, page):
-        format = self.templates.playlistsPaginator.copy()
-        format.title = format.title.format(self.author.name)
-        format.description = format.description.format(len(self.playlists))
-        format.add_field(name="`%s`" % page["name"],
-                         value="ID: `{0[id]}`, Song Count: `{1}`".format(
-                             page, len(page["songs"])))
-        return format
+        embed = self.templates.playlistsPaginator.copy()
+        embed.title = embed.title.format(self.author.name)
+        embed.description = format.description.format(len(self.playlists))
+        embed.add_field(embed="`%s`" % page["name"],
+                        value="ID: `{0[id]}`, Song Count: `{1}`".format(
+                            page, len(page["songs"])))
+        return embed

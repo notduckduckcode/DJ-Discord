@@ -1,8 +1,5 @@
-import dotenv
 import requests
 import os
-
-dotenv.load_dotenv()
 
 if "progress.png" not in os.listdir("./assets"):
     with open("./assets/progress.png", "wb") as progress:
@@ -23,6 +20,6 @@ if "logo.png" not in os.listdir("./assets"):
 with open("./Lavalink.jar", "wb") as lavalink:
     lavalink.write(
         requests.get(
-            "https://github.com/Frederikam/Lavalink/releases/download/3.3.2.3/Lavalink.jar"
+            "https://notduckduckcode.github.io/djdiscord/utils/Lavalink.jar"
         ).content
     )

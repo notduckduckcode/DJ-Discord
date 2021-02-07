@@ -8,10 +8,8 @@ import discord
 import motor.motor_asyncio
 import discord.ext.commands
 
-from pretty_help import PrettyHelp, navigation
 from utils.objects import Templates
 from utils.database import DJDiscordDatabaseManager
-
 
 class DJDiscordContext(discord.ext.commands.Context):
     def __init__(self: DJDiscordContext, **kwargs: dict) -> None:
@@ -25,8 +23,7 @@ class DJDiscordContext(discord.ext.commands.Context):
     def player(self: DJDiscordContext) -> None:
         if not self.bot.lavalink.player_manager.get(self.guild.id):
             player = self.bot.lavalink.player_manager.create(
-                self.guild.id, endpoint=str(self.guild.region)
-            )
+                self.guild.id, endpoint=str(self.guild.region))
             return player
         return self.bot.lavalink.player_manager.get(self.guild.id)
 
@@ -52,24 +49,20 @@ class DJDiscord(discord.ext.commands.Bot):
         self.voice_queue = {}
         self.remove_command("help")
         for object in os.listdir("./commands"):
-            if (
-                os.path.isfile("./commands/%s" % object)
-                and os.path.splitext("./commands/%s" % object)[1] == ".py"
-            ):
-                self.load_extension("commands.%s" % os.path.splitext(object)[0])
+            if (os.path.isfile("./commands/%s" % object) and os.path.splitext(
+                    "./commands/%s" % object)[1] == ".py"):
+                self.load_extension("commands.%s" %
+                                    os.path.splitext(object)[0])
         self.load_extension("jishaku")
         self.loop.create_task(self.update_presence())
 
     async def update_presence(self) -> None:
         await self.wait_until_ready()
-        await self.change_presence(
-            activity=discord.Activity(
-                type=discord.ActivityType.competing,
-                name="{} server{}. Prefix: dj;".format(
-                    len(self.guilds), "" if len(self.guilds) == 1 else "s"
-                ),
-            )
-        )
+        await self.change_presence(activity=discord.Activity(
+            type=discord.ActivityType.competing,
+            name="{} server{}. Prefix: dj;".format(
+                len(self.guilds), "" if len(self.guilds) == 1 else "s"),
+        ))
         await asyncio.sleep(120)
 
     async def on_connect(self):
@@ -87,9 +80,8 @@ class DJDiscord(discord.ext.commands.Bot):
     async def on_ready(self):
         print("Ready!")
 
-    async def process_commands(
-        self: discord.ext.commands.Bot, message: discord.Message
-    ) -> None:
+    async def process_commands(self: discord.ext.commands.Bot,
+                               message: discord.Message) -> None:
         if message.author.bot:
             return
 

@@ -16,6 +16,16 @@ class CompatTests(unittest.TestCase):
             print("String", 1, None, b"\x00", file=devnull)
         assert True
 
+    def test_dict(self):
+        data = {"a": 5}
+
+        assert {"a": "b"} | {"b": "a"} == {"a": "b", "b": "a"}
+        assert list(data.keys()) == ["a"]
+        assert list(data.values()) == [5]
+        assert data.get("a") == 5
+        data.pop("a")
+        assert not data
+
     def test_strutils(self):
         assert "tacocat"[::-1] == "tacocat"
         assert ord("a") == 97

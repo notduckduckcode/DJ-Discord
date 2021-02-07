@@ -229,46 +229,53 @@ class Music(discord.ext.commands.Cog):
                 _file = discord.File(io.BytesIO(buffer.getvalue()),
                                      filename="progress.png")
 
-            await ctx.send(embed=discord.Embed(
-                title="Current song in queue",
-                color=0xDC333C,
-                timestamp=datetime.datetime.now()).add_field(
-                    name="Song Name",
-                    value=ctx.player.current.extra.get("raw_info")["title"],
-                    inline=False).add_field(
-                        name="Song Length",
-                        value=milliseconds_to_str(ctx.player.current.duration),
-                        inline=False).add_field(
-                            name="Song Uploader",
-                            value=ctx.player.current.extra.get(
-                                "raw_info")["uploader"],
-                            inline=False).add_field(
-                                name="Original Link",
-                                value="[Click Me!]({})".format(
-                                    ctx.player.current.extra.get("raw_info")
-                                    ["url"]),
-                                inline=False).
-                           set_thumbnail(url=ctx.player.current.extra.get(
-                               "raw_info")["thumbnails"][-1]["url"]).set_image(
-                                   url="attachment://progress.png"),
-                           file=_file)
-        else:
             await ctx.send(
-                embed=discord.Embed(title="Current radio station",
+                embed=discord.Embed(title="Current song in queue",
                                     color=0xDC333C,
                                     timestamp=datetime.datetime.now()).
-                add_field(name="Radio Station Call Sign",
+                add_field(
+                    name="Song Name",
+                    value=ctx.player.current.extra.get("raw_info")["title"],
+                    inline=False).add_field(name="Song Length",
+                                            value=milliseconds_to_str(
+                                                ctx.player.current.duration),
+                                            inline=False).
+                add_field(name="Song Uploader",
                           value=ctx.player.current.extra.get("raw_info")
-                          ["call_sign"],
+                          ["uploader"],
                           inline=False).
-                add_field(name="Radio station Frequency",
-                          value=ctx.player.current.extra.get("raw_info")
-                          ["frequency"],
-                          inline=False).add_field(name="Original Link",
-                                                  value=ctx.player.current.
-                                                  extra.get("raw_info")["url"],
-                                                  inline=False).
-                set_thumbnail(
+                add_field(
+                    name="Original Link",
+                    value=
+                    "[Click Me!]({} \"this link will redirect you to the original youtube url\")"
+                    .format(ctx.player.current.extra.get("raw_info")["url"]),
+                    inline=False).set_thumbnail(
+                        url=ctx.player.current.extra.get(
+                            "raw_info")["thumbnails"][-1]["url"]).set_image(
+                                url="attachment://progress.png"),
+                file=_file)
+        else:
+            await ctx.send(embed=discord.Embed(
+                title="Current radio station",
+                color=0xDC333C,
+                timestamp=datetime.datetime.now()
+            ).add_field(
+                name="Radio Station Call Sign",
+                value=ctx.player.current.extra.get("raw_info")["call_sign"],
+                inline=False
+            ).add_field(
+                name="Radio station Frequency",
+                value=ctx.
+                player.current
+                .extra.get("raw_info")
+                ["frequency"],
+                inline=False
+            ).add_field(
+                name="Original Link",
+                value=
+                "[Click Me!]{} \"this link will redirect you to the original youtube url\")"
+                .format(ctx.player.current.extra.get("raw_info")["url"]),
+                inline=False).set_thumbnail(
                     url=ctx.player.current.extra.get("raw_info")["thumbnail"]))
 
     @discord.ext.commands.command(name="radiostart")

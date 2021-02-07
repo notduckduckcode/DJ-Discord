@@ -21,20 +21,24 @@ class Template(type):
 class Templates(metaclass=Template):
     eval = discord.Embed(
         title="Evaluation Complete!",
-        description=
-        "Evaluations are closely monitored for data leaks and as such this message "
-        "will self destruct in 10 seconds",
+        description="Evaluations are closely monitored for data leaks and as such this message "
+                    "will self destruct in 10 seconds",
         color=4128651)
 
     incompleteCmd = discord.Embed(
         title="**`ERROR`** - Insufficent Arguments",
-        description=
-        "Or in layman's terms, you need to give a bit more for this to work\n```\nUsage:\n{0.bot.command_prefix}{0.command.name} <command> <arguments>\n```"
+        description="Or in layman's terms, you need to give a bit more for this to work\n"
+                    "```\n"
+                    "Usage:\n"
+                    "{0.bot.command_prefix}{0.command.name} <command> <arguments>\n"
+                    "```"
     )
     cmdError = discord.Embed(
         title="**`ERROR`** - Internal Error",
-        description=
-        "Or in layman's terms, you may need to tell the developers about this\n```\n{}```"
+        description="Or in layman's terms, you may need to tell the developers about this\n"
+                    "```\n"
+                    "{}\n"
+                    "```"
     ).set_image(url="https://media4.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif")
     playlistChange = discord.Embed(
         title="Done!",
@@ -84,20 +88,30 @@ class Song:
 @dataclass
 class Station:
     source: str
+    call_sign: str
+    frequency: float
     thumbnail: typing.Optional[str]
     url: typing.Optional[str]
 
     @property
     def json(self) -> dict:
-        return {"source": self.source, "thumbnail": self.thumbnail, "url": str}
+        return {
+            "source": self.source,
+            "frequency": self.frequency,
+            "call_sign": self.call_sign,
+            "thumbnail": self.thumbnail,
+            "url": self.url
+        }
 
     @staticmethod
     def from_json(_dict: dict) -> Station:
         source = _dict["source"]
         thumbnail = _dict.get("thumbnail")
+        call_sign = _dict.get("call_sign")
+        frequency = _dict.get("frequency")
         url = _dict.get("url")
 
-        return Station(source, thumbnail, url)
+        return Station(source, call_sign, frequency, thumbnail, url)
 
 
 class YoutubeLogger(object):
@@ -379,12 +393,12 @@ class Playlist:
 
     @staticmethod
     def from_json(_dict: dict) -> Playlist:
-        id = _dict["id"]
+        _id = _dict["id"]
         songs = _dict["songs"]
         author = _dict["author"]
         cover = _dict["cover"]
 
-        return Playlist(id, songs, author, cover)
+        return Playlist(_id, songs, author, cover)
 
     async def delete_at(self, ctx: discord.ext.commands.Context, index: int):
         await ctx.mongodb.djdiscord.playlists.update_one(

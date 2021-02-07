@@ -18,4 +18,5 @@ bot = DJDiscord(
         typing=True,
     ),
 )
+
 bot.run(os.environ["BOT_TOKEN"])
